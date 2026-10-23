@@ -11,7 +11,7 @@ exception, in malli's errors or as JSON it says only
 used.
 
 ```clojure
-io.github.p4ulcristian/groundwork-settings {:git/tag "v0.1.1" :git/sha "72d0dbb"}
+io.github.p4ulcristian/groundwork-settings {:git/tag "v0.1.2" :git/sha "25dfbf7"}
 ```
 
 Needs only malli and jsonista, and the `sops` or `op` program on the
