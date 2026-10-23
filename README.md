@@ -1,21 +1,21 @@
-# safe
+# groundwork-settings
 
-Settings and secrets for a Clojure app, groundwork's wall safe. One EDN
+Settings and secrets for a Clojure app. One EDN
 file per environment holds the whole settings map; `#secret :ns/name`
 references are read from the one source the file names, sops or
 1Password; `#env "NAME"` fills what the platform hands in. `load` checks
 the result against the app's malli shape and throws every problem at
 once, each with its path. A secret stays wrapped: printed, logged, in an
 exception, in malli's errors or as JSON it says only
-`#secret :postbox/postmark-token`; `reveal` gives its text where it is
+`#secret :groundwork-email/postmark-token`; `reveal` gives its text where it is
 used.
 
 ```clojure
-io.github.p4ulcristian/safe {:git/tag "v0.1.1" :git/sha "72d0dbb"}
+io.github.p4ulcristian/groundwork-settings {:git/tag "v0.1.1" :git/sha "72d0dbb"}
 ```
 
 Needs only malli and jsonista, and the `sops` or `op` program on the
-PATH. One public namespace, `safe.api`.
+PATH. One public namespace, `groundwork-settings.api`.
 
 ## The api
 
@@ -34,53 +34,53 @@ PATH. One public namespace, `safe.api`.
             :age-key-file "/run/secrets/age-key"
             :timeout-ms   30000}                     ; how long sops may take
  :server   {:ip "0.0.0.0" :port #env ["PORT" :int]}
- :database {:host "db.internal" :user "shop" :password #secret :cellar/password}
- :postbox  {:provider {:name :postmark :server-token #secret :postbox/postmark-token}}}
+ :database {:host "db.internal" :user "shop" :password #secret :groundwork-postgres/password}
+ :email  {:provider {:name :postmark :server-token #secret :groundwork-email/postmark-token}}}
 ```
 
 ```clojure
-(require '[safe.api :as safe])
+(require '[groundwork-settings.api :as settings])
 
-(def settings (safe/load {:file  "settings/production.edn"
+(def settings (settings/load {:file  "settings/production.edn"
                           :shape settings-shape      ; the app's malli shape, without :secrets
                           :env   (System/getenv)}))
 
 settings
 ;=> {:server   {:ip "0.0.0.0" :port 8080}
-;    :database {:host "db.internal" :user "shop" :password #secret :cellar/password}
-;    :postbox  {:provider {:name :postmark :server-token #secret :postbox/postmark-token}}}
+;    :database {:host "db.internal" :user "shop" :password #secret :groundwork-postgres/password}
+;    :email  {:provider {:name :postmark :server-token #secret :groundwork-email/postmark-token}}}
 
 ;; a library's settings shape
-[:map {:closed true} [:server-token safe/secret] …]
+[:map {:closed true} [:server-token settings/secret] …]
 
 ;; where the text is used, and only there
-(.header builder "X-Postmark-Server-Token" (safe/reveal server-token))
+(.header builder "X-Postmark-Server-Token" (settings/reveal server-token))
 
 ;; a token a request carries, against the settings'
-(safe/equal? (:token settings) (read-bearer-token request))
+(settings/equal? (:token settings) (read-bearer-token request))
 ```
 
 A file with problems throws once:
 
 ```
 settings/production.edn has 3 problems:
-  [:database :password] :cellar/password is not in secrets/production.sops.yaml: no key password under cellar
+  [:database :password] :groundwork-postgres/password is not in secrets/production.sops.yaml: no key password under cellar
   [:server :host] disallowed key
   [:server :port] the environment variable PORT is not set
 ```
 
-with `(ex-data e)` = `{:type :safe/bad-settings :file … :problems [{:path … :message …} …]}`.
-safe logs nothing: it runs before the app's log exists.
+with `(ex-data e)` = `{:type :groundwork-settings/bad-settings :file … :problems [{:path … :message …} …]}`.
+groundwork-settings logs nothing: it runs before the app's log exists.
 
 ## The two sources
 
 `:secrets` names one, every key required, or is nil when the file has no
 `#secret`. `load` leaves it out of the result.
 
-**sops**: `{:from :sops :file … :age-key-file … :timeout-ms …}`. safe runs
+**sops**: `{:from :sops :file … :age-key-file … :timeout-ms …}`. groundwork-settings runs
 `sops --decrypt --output-type json <file>` with only `PATH` and
-`SOPS_AGE_KEY_FILE` set and reads its output in memory. `:cellar/password`
-is the key `password` under `cellar`:
+`SOPS_AGE_KEY_FILE` set and reads its output in memory. `:groundwork-postgres/password`
+is the key `password` under `groundwork-postgres`:
 
 ```yaml
 # secrets/production.sops.yaml, before `sops --encrypt --age <public key>`
@@ -92,9 +92,9 @@ postbox:
 ```
 
 **1Password**: `{:from :1password :vault "shop-production" :token-from #env "OP_SERVICE_ACCOUNT_TOKEN" :timeout-ms …}`.
-safe runs `op read --no-newline op://shop-production/cellar/password` once
+groundwork-settings runs `op read --no-newline op://shop-production/cellar/password` once
 per secret, with only `PATH`, `OP_SERVICE_ACCOUNT_TOKEN` and `OP_CACHE=false`
-set: the item `cellar`, its field `password`. The token comes only from
+set: the item `groundwork-postgres`, its field `password`. The token comes only from
 `#env`, goes to op in its environment, and is never said.
 
 Nothing decrypted is written to disk, and nothing is cached. A program

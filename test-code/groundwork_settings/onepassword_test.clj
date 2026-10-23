@@ -1,13 +1,13 @@
-(ns safe.onepassword-test
+(ns groundwork-settings.onepassword-test
   "The 1Password source against a fake op on the PATH: a script that
    answers op read as a service account would, and refuses a call that
-   doesn't come as safe makes it (the token in its environment, the cache
+   doesn't come as groundwork-settings makes it (the token in its environment, the cache
    off, no HOME, no other variable). Never a real 1Password."
   (:require
    [clojure.string :as str]
    [clojure.test :refer [deftest is testing]]
-   [safe.api :as safe]
-   [safe.test-files :as files]))
+   [groundwork-settings.api :as settings]
+   [groundwork-settings.test-files :as files]))
 
 (def ^:private token "ops_fake-service-account-token-5150")
 
@@ -31,8 +31,8 @@ esac
 (def ^:private shape
   [:map {:closed true}
    [:server [:map {:closed true} [:port :int]]]
-   [:postbox [:map {:closed true} [:server-token safe/secret]]]
-   [:database [:map {:closed true} [:password safe/secret]]]])
+   [:email [:map {:closed true} [:server-token settings/secret]]]
+   [:database [:map {:closed true} [:password settings/secret]]]])
 
 (defn- make-world
   "A folder with the fake op and an environment whose PATH finds it."
@@ -49,12 +49,12 @@ esac
 (defn- settings-text [{:keys [vault token-from extra]}]
   (str "{:secrets {:from :1password :vault \"" vault "\" :token-from " token-from " :timeout-ms 3000}
  :server   {:port #env [\"PORT\" :int]}
- :postbox  {:server-token #secret :postbox/postmark-token}
- :database {:password #secret :cellar/password}"
+ :email  {:server-token #secret :groundwork-email/postmark-token}
+ :database {:password #secret :groundwork-postgres/password}"
        extra "}"))
 
 (defn- load-settings [{:keys [folder env]} text]
-  (safe/load {:file  (files/write-file folder "production.edn" text)
+  (settings/load {:file  (files/write-file folder "production.edn" text)
               :shape shape
               :env   env}))
 
@@ -68,16 +68,16 @@ esac
         settings (load-settings world (settings-text {:vault "shop-test" :token-from "#env \"OP_SERVICE_ACCOUNT_TOKEN\""}))]
     (is (= {:port 8080} (:server settings)))
     (is (not (contains? settings :secrets)) "the source is left out")
-    (is (= "pm-text-of-the-postmark-token" (safe/reveal (get-in settings [:postbox :server-token]))))
-    (is (= "db-text-of-the-password" (safe/reveal (get-in settings [:database :password]))))
-    (is (= "{:server {:port 8080}, :postbox {:server-token #secret :postbox/postmark-token}, :database {:password #secret :cellar/password}}"
+    (is (= "pm-text-of-the-postmark-token" (settings/reveal (get-in settings [:email :server-token]))))
+    (is (= "db-text-of-the-password" (settings/reveal (get-in settings [:database :password]))))
+    (is (= "{:server {:port 8080}, :email {:server-token #secret :groundwork-email/postmark-token}, :database {:password #secret :groundwork-postgres/password}}"
            (pr-str settings)))))
 
 (deftest a-secret-1password-doesnt-have-is-a-problem-at-its-path
   (let [world (make-world)
         {:keys [problems text]}
         (problems-of #(load-settings world (str/replace (settings-text {:vault "shop-test" :token-from "#env \"OP_SERVICE_ACCOUNT_TOKEN\""})
-                                                        ":cellar/password" ":cellar/no-such")))]
+                                                        ":groundwork-postgres/password" ":groundwork-postgres/no-such")))]
     (is (= [{:path [:database :password]
              :message "1Password could not read op://shop-test/cellar/no-such: could not read secret 'op://shop-test/cellar/no-such': isn't an item in the vault"}]
            problems))
@@ -87,7 +87,7 @@ esac
   (let [world (assoc-in (make-world) [:env "OP_SERVICE_ACCOUNT_TOKEN"] "ops_another-token-0000")
         {:keys [problems text]}
         (problems-of #(load-settings world (settings-text {:vault "shop-test" :token-from "#env \"OP_SERVICE_ACCOUNT_TOKEN\""})))]
-    (is (= #{[:postbox :server-token] [:database :password]} (set (map :path problems))))
+    (is (= #{[:email :server-token] [:database :password]} (set (map :path problems))))
     (is (every? #(str/includes? (:message %) "not signed in") problems))
     (is (not (str/includes? text "ops_another-token")))))
 
@@ -95,9 +95,9 @@ esac
   (let [world (make-world)
         {:keys [problems text]}
         (problems-of #(load-settings world (str/replace (settings-text {:vault "shop-test" :token-from "#env \"OP_SERVICE_ACCOUNT_TOKEN\""})
-                                                        ":cellar/password" ":leaky/token")))]
+                                                        ":groundwork-postgres/password" ":leaky/token")))]
     (is (= [{:path [:database :password]
-             :message "1Password could not read op://shop-test/leaky/token: echoing #secret :safe/op-service-account-token"}]
+             :message "1Password could not read op://shop-test/leaky/token: echoing #secret :groundwork-settings/op-service-account-token"}]
            problems))
     (is (not (str/includes? text token)))))
 
@@ -119,7 +119,7 @@ esac
 (deftest op-that-takes-too-long-is-stopped
   (let [world (make-world)
         text  (-> (settings-text {:vault "shop-test" :token-from "#env \"OP_SERVICE_ACCOUNT_TOKEN\""})
-                  (str/replace ":cellar/password" ":slow/token")
+                  (str/replace ":groundwork-postgres/password" ":slow/token")
                   (str/replace ":timeout-ms 3000" ":timeout-ms 300"))
         start (System/nanoTime)
         {:keys [problems]} (problems-of #(load-settings world text))]

@@ -1,13 +1,13 @@
-;; safe: groundwork's settings and secrets. One EDN file per environment, its
+;; groundwork-settings: groundwork's settings and secrets. One EDN file per environment, its
 ;; #secret references read from one source, sops or 1Password, its #env from
 ;; the environment, every problem at once; a secret prints as its name.
-;; One tree: source-code/safe/.
+;; One tree: source-code/groundwork_settings/.
 {:paths ["source-code"]
 
  :deps
  {;; sops's decrypted output, read in memory; a secret written as JSON says its name
   metosin/jsonista {:mvn/version "1.0.2"}
-  ;; the settings' shape, and safe/secret in it
+  ;; the settings' shape, and settings/secret in it
   metosin/malli    {:mvn/version "0.20.3"}}
 
  :aliases
@@ -15,6 +15,6 @@
   :test {:extra-paths ["test-code"]
          :extra-deps  {io.github.cognitect-labs/test-runner {:git/tag "v0.5.1" :git/sha "dfb30dd"}
                        ;; a secret in a log line, both formats
-                       io.github.p4ulcristian/logbook       {:git/tag "v0.1.2" :git/sha "823f8fc"}}
+                       io.github.p4ulcristian/groundwork-logs       {:git/tag "v0.1.2" :git/sha "823f8fc"}}
          :exec-fn     cognitect.test-runner.api/test
          :exec-args   {:dirs ["test-code"]}}}}

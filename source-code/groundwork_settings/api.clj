@@ -1,7 +1,7 @@
-(ns safe.api
+(ns groundwork-settings.api
   "groundwork's settings and secrets: one EDN file per environment, its
    secrets read from the one source the file names, every problem listed
-   at once. safe's one public namespace.
+   at once. groundwork-settings's one public namespace.
 
      ;; settings/production.edn
      {:secrets {:from         :sops
@@ -9,42 +9,42 @@
                 :age-key-file \"/run/secrets/age-key\"
                 :timeout-ms   30000}
       :server  {:ip \"0.0.0.0\" :port #env [\"PORT\" :int]}
-      :postbox {:provider {:name :postmark :server-token #secret :postbox/postmark-token}}}
+      :email {:provider {:name :postmark :server-token #secret :groundwork-email/postmark-token}}}
 
-     (def settings (safe/load {:file  \"settings/production.edn\"
+     (def settings (settings/load {:file  \"settings/production.edn\"
                                :shape settings-shape
                                :env   (System/getenv)}))
 
-     (:postbox settings)
-     ;=> {:provider {:name :postmark :server-token #secret :postbox/postmark-token}}
+     (:email settings)
+     ;=> {:provider {:name :postmark :server-token #secret :groundwork-email/postmark-token}}
 
      ;; where it is used, and only there
-     (.header request \"X-Postmark-Server-Token\" (safe/reveal server-token))
+     (.header request \"X-Postmark-Server-Token\" (settings/reveal server-token))
 
-   A secret is a value of safe's own type: printed, turned into text, in
+   A secret is a value of groundwork-settings's own type: printed, turned into text, in
    ex-data, in malli's errors and written as JSON it says only its name.
-   A library's settings shape names it with safe/secret.
+   A library's settings shape names it with settings/secret.
 
-   safe logs nothing: it runs before the app's log exists, and returns the
-   settings or throws {:type :safe/bad-settings :problems [{:path :message}]}."
+   groundwork-settings logs nothing: it runs before the app's log exists, and returns the
+   settings or throws {:type :groundwork-settings/bad-settings :problems [{:path :message}]}."
   (:refer-clojure :exclude [load])
   (:require
    [clojure.string :as str]
    [malli.core :as malli]
    [malli.error :as malli-error]
-   [safe.reading :as reading]
-   [safe.secret :as secret]
-   [safe.sources :as sources]))
+   [groundwork-settings.reading :as reading]
+   [groundwork-settings.secret :as secret]
+   [groundwork-settings.sources :as sources]))
 
 (def secret
   "The malli shape of a secret, for a library's settings shape:
-   [:map [:server-token safe/secret]]. Takes only a secret, never a
+   [:map [:server-token settings/secret]]. Takes only a secret, never a
    string: a token written out is refused."
   secret/secret-shape)
 
 (defn reveal
   "The secret's text, for the one place that uses it (a header, a
-   password handed to the driver). Throws :safe/not-a-secret for anything
+   password handed to the driver). Throws :groundwork-settings/not-a-secret for anything
    else, naming only its class."
   ^String [a-secret]
   (secret/reveal-text a-secret))
@@ -75,12 +75,12 @@
 
 (defn- check-options [options]
   (when-let [explanation (malli/explain options-shape options)]
-    (throw (ex-info (str "safe/load's options have problems: " (pr-str (malli-error/humanize explanation)))
-                    {:type :safe/bad-options :errors (malli-error/humanize explanation)})))
+    (throw (ex-info (str "settings/load's options have problems: " (pr-str (malli-error/humanize explanation)))
+                    {:type :groundwork-settings/bad-options :errors (malli-error/humanize explanation)})))
   (try (malli/schema (:shape options))
        (catch Exception e
-         (throw (ex-info (str "safe/load's :shape is not a malli shape: " (ex-message e))
-                         {:type :safe/bad-options :errors {:shape [(ex-message e)]}})))))
+         (throw (ex-info (str "settings/load's :shape is not a malli shape: " (ex-message e))
+                         {:type :groundwork-settings/bad-options :errors {:shape [(ex-message e)]}})))))
 
 (defn- say-problems [file problems]
   (str file " has " (count problems) (if (= 1 (count problems)) " problem:" " problems:")
@@ -90,7 +90,7 @@
 (defn- refuse [file problems]
   (let [sorted (vec (sort-by (comp pr-str :path) problems))]
     (throw (ex-info (say-problems file sorted)
-                    {:type :safe/bad-settings :file file :problems sorted}))))
+                    {:type :groundwork-settings/bad-settings :file file :problems sorted}))))
 
 (defn- list-shape-problems
   "The shape's problems, each {:path :message}, but those about a value
@@ -109,7 +109,7 @@
   [raw-source filled-source]
   (concat
    (when (and (map? raw-source) (contains? raw-source :token-from)
-              (not (instance? safe.reading.EnvReference (:token-from raw-source))))
+              (not (instance? groundwork_settings.reading.EnvReference (:token-from raw-source))))
      [{:path [:secrets :token-from] :message "should be #env \"NAME\": the token never sits in the file"}])
    (when-let [explanation (malli/explain sources/source-shape filled-source)]
      (for [{:keys [in message]} (:errors (malli-error/with-error-messages explanation))
@@ -152,7 +152,7 @@
    shape), every key required by it: #env \"NAME\" and #env [\"NAME\" :int]
    filled from :env, (System/getenv) in an app; #secret :ns/name from the
    source the file names under :secrets, a key the result leaves out.
-   Throws {:type :safe/bad-settings :file … :problems [{:path … :message …}]}
+   Throws {:type :groundwork-settings/bad-settings :file … :problems [{:path … :message …}]}
    with every problem at once: a file that can't be read, a missing or
    unknown key, a wrong type, a missing environment variable, a #secret
    the source doesn't have, a source that fails. A secret is never in a

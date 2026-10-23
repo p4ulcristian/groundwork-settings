@@ -1,4 +1,4 @@
-(ns safe.test-files
+(ns groundwork-settings.test-files
   "Throwaway folders in the system's temporary folder, settings files and
    fake programs in them, for the tests."
   (:require
@@ -10,7 +10,7 @@
 (defn make-folder
   "A new empty folder under the temporary folder, deleted when the JVM ends."
   []
-  (let [folder (.toFile (Files/createTempDirectory "safe-test-" (make-array FileAttribute 0)))]
+  (let [folder (.toFile (Files/createTempDirectory "groundwork-settings-test-" (make-array FileAttribute 0)))]
     (.deleteOnExit folder)
     folder))
 

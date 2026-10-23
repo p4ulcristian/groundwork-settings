@@ -1,15 +1,15 @@
-(ns safe.sources
+(ns groundwork-settings.sources
   "Where the secrets come from: the one source the settings file names
    under :secrets. sops: one `sops --decrypt` of the file with the age
    key, its output read in memory. 1Password: one `op read` per secret,
    with a service account's token. Each program is found on the PATH of
-   the environment safe was given and runs with only the variables it
+   the environment groundwork-settings was given and runs with only the variables it
    needs; nothing it prints is written anywhere."
   (:require
    [clojure.java.io :as io]
    [clojure.string :as str]
    [jsonista.core :as json]
-   [safe.secret :as secret])
+   [groundwork-settings.secret :as secret])
   (:import
    (java.io File InputStream)
    (java.nio.charset StandardCharsets)
@@ -19,7 +19,7 @@
   "The :secrets source, every key required, by :from.
    {:from :sops :file \"secrets/production.sops.yaml\" :age-key-file \"/run/secrets/age-key\" :timeout-ms 30000}:
    sops decrypts :file with the age key in :age-key-file; a secret
-   :postbox/postmark-token is the file's key postmark-token under postbox.
+   :groundwork-email/postmark-token is the file's key postmark-token under groundwork-email.
    {:from :1password :vault \"shop-production\" :token-from #env \"OP_SERVICE_ACCOUNT_TOKEN\" :timeout-ms 30000}:
    1Password's op reads op://<vault>/<namespace>/<name>, the item named
    by the secret's namespace and its field named by its name, as the
@@ -181,7 +181,7 @@
    The token goes to op in its environment, never on its command line."
   [{:keys [vault token-from timeout-ms]} env secret-names]
   (let [op    (find-program env "op")
-        token (secret/make-secret :safe/op-service-account-token token-from)]
+        token (secret/make-secret :groundwork-settings/op-service-account-token token-from)]
     (if-not op
       {:found {} :missing {} :problems [(problem [:secrets :from] "no op on the PATH")]}
       (let [results (into {} (map (juxt identity #(read-one-from-1password op vault token timeout-ms env %))) secret-names)]

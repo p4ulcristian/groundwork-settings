@@ -1,4 +1,4 @@
-(ns safe.reading
+(ns groundwork-settings.reading
   "Reading a settings file: one EDN map, with #secret and #env tags,
    each read as a reference and filled in afterwards, walking the map
    with every value's path."
@@ -142,7 +142,7 @@
                        (when (instance? SecretReference reference)
                          (if (qualified-keyword? (:given reference))
                            (vswap! found conj {:path path :secret-name (:given reference)})
-                           (vswap! problems conj (problem path "#secret takes a namespaced keyword, #secret :postbox/postmark-token"))))
+                           (vswap! problems conj (problem path "#secret takes a namespaced keyword, #secret :groundwork-email/postmark-token"))))
                        reference))
     [@found @problems]))
 

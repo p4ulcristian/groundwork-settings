@@ -1,7 +1,7 @@
-(ns safe.secret
-  "A secret: text kept inside a value of safe's own type, which says only
+(ns groundwork-settings.secret
+  "A secret: text kept inside a value of groundwork-settings's own type, which says only
    its name wherever it is printed, turned into text or written as JSON:
-   #secret :postbox/postmark-token. reveal-text gives the text."
+   #secret :groundwork-email/postmark-token. reveal-text gives the text."
   (:require
    [malli.core :as malli])
   (:import
@@ -46,11 +46,11 @@
   "A secret named secret-name (a namespaced keyword) holding text."
   [secret-name text]
   (when-not (qualified-keyword? secret-name)
-    (throw (ex-info "A secret's name is a namespaced keyword, like :postbox/postmark-token."
-                    {:type :safe/bad-secret-name :given-class (some-> secret-name class .getName)})))
+    (throw (ex-info "A secret's name is a namespaced keyword, like :groundwork-email/postmark-token."
+                    {:type :groundwork-settings/bad-secret-name :given-class (some-> secret-name class .getName)})))
   (when-not (string? text)
     (throw (ex-info (str "A secret's text is a string; " secret-name " was given another value.")
-                    {:type :safe/bad-secret-text :secret-name secret-name :given-class (some-> text class .getName)})))
+                    {:type :groundwork-settings/bad-secret-text :secret-name secret-name :given-class (some-> text class .getName)})))
   (Secret. secret-name text))
 
 (defn reveal-text
@@ -60,7 +60,7 @@
     (.revealText ^Revealable secret)
     (throw (ex-info (str "reveal takes a secret; it was given "
                          (if (nil? secret) "nil" (.getName (class secret))) ".")
-                    {:type :safe/not-a-secret :given-class (some-> secret class .getName)}))))
+                    {:type :groundwork-settings/not-a-secret :given-class (some-> secret class .getName)}))))
 
 (defn- hash-text ^bytes [^String text]
   (.digest (MessageDigest/getInstance "SHA-256") (.getBytes text StandardCharsets/UTF_8)))
@@ -82,9 +82,9 @@
 
 (def secret-shape
   "The malli shape of a secret, for a library's settings shape:
-   [:map [:server-token safe/secret]]. A string, a written-out token, is
+   [:map [:server-token settings/secret]]. A string, a written-out token, is
    refused: a secret comes from the settings' secrets source."
   (malli/-simple-schema
-   {:type            :safe/secret
+   {:type            :groundwork-settings/secret
     :pred            secret?
     :type-properties {:error/message "should be a #secret, read from the settings' secrets source"}}))
