@@ -15,6 +15,6 @@
   :test {:extra-paths ["test-code"]
          :extra-deps  {io.github.cognitect-labs/test-runner {:git/tag "v0.5.1" :git/sha "dfb30dd"}
                        ;; a secret in a log line, both formats
-                       io.github.p4ulcristian/logbook       {:git/tag "v0.1.1" :git/sha "51a2c93"}}
+                       io.github.p4ulcristian/logbook       {:git/tag "v0.1.2" :git/sha "823f8fc"}}
          :exec-fn     cognitect.test-runner.api/test
          :exec-args   {:dirs ["test-code"]}}}}
