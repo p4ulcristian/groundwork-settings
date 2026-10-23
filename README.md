@@ -11,7 +11,7 @@ exception, in malli's errors or as JSON it says only
 used.
 
 ```clojure
-io.github.p4ulcristian/safe {:git/tag "v0.1.0" :git/sha "b4783eb"}
+io.github.p4ulcristian/safe {:git/tag "v0.1.1" :git/sha "72d0dbb"}
 ```
 
 Needs only malli and jsonista, and the `sops` or `op` program on the
