@@ -1,5 +1,7 @@
 # Each source runs its program, found on the PATH it is given, with a time limit
 
+> **Changed in part** by [The family and its composer are groundwork](https://github.com/p4ulcristian/groundwork/blob/Starting-from-the-bottom/decisions/2026-10-23-the-family-and-its-composer-are-groundwork.md) (2026-10-23): manor, the family, and house, the composer, are both named groundwork now.
+
 **Decision:** sops and op are programs, not libraries: safe finds each on the `PATH` of the environment `load` is given (`:env`), runs it by its absolute path, and stops it, by its own process, after the source's `:timeout-ms`, a required key: a run that takes longer is a problem at `[:secrets]` (sops) or at the secret's path (op). No program on the `PATH` is a problem at `[:secrets :from]`.
 
 - **sops decrypts once**, the whole file; every reference is then looked up in the tree, so every missing name is listed.

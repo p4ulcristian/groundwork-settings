@@ -1,5 +1,7 @@
 # #env fills in what the platform hands in
 
+> **Changed in part** by [The family and its composer are groundwork](https://github.com/p4ulcristian/groundwork/blob/Starting-from-the-bottom/decisions/2026-10-23-the-family-and-its-composer-are-groundwork.md) (2026-10-23): manor, the family, and house, the composer, are both named groundwork now.
+
 **Decision:** `#env "PORT"` is the environment variable's text; `#env ["PORT" :int]` a whole number, `#env ["DEBUG" :boolean]` `true` or `false`, `#env ["NAME" :string]` the text again. A variable that isn't set, or whose text isn't its type, is a problem at its path, like any other; its text is never said. The environment is `load`'s required option `:env`: `(System/getenv)` in an app, a map in a test. It also gives sops and op their `PATH`.
 
 **Why:** a few values come from the platform, not the repository: the port a host assigns, the token that opens the secrets (`:token-from #env "OP_SERVICE_ACCOUNT_TOKEN"`). Typed, the shape checks the number, not its text. An environment passed in keeps a test from setting the JVM's own, which it can't.

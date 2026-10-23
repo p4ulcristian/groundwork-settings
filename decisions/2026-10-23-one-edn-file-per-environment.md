@@ -1,5 +1,7 @@
 # One EDN settings file per environment
 
+> **Changed in part** by [The family and its composer are groundwork](https://github.com/p4ulcristian/groundwork/blob/Starting-from-the-bottom/decisions/2026-10-23-the-family-and-its-composer-are-groundwork.md) (2026-10-23): manor, the family, and house, the composer, are both named groundwork now.
+
 **Decision:** an app's settings are one EDN file per environment in its own repository, `settings/production.edn`, `settings/development.edn`: the whole settings map, every key written out, as the app's shape requires. Two tags stand where a value isn't in the file: `#secret :postbox/postmark-token`, read from the secrets' source the file names, and `#env "PORT"`, read from the environment. Paths in the file (the sops file, the age key) are as written, relative to the folder the app runs in.
 
 **Why:** the file is the whole story of an environment: readable at once, diffable against another (`diff settings/stage.edn settings/production.edn` shows every difference that isn't a secret), reviewed in a pull request like code. It holds no secret, so it can be public. Manor's rule that every value that sets behaviour is a setting (mailroom's [Every value that sets behaviour is a setting](https://github.com/p4ulcristian/mailroom/blob/main/decisions/2026-10-22-every-value-that-sets-behaviour-is-a-setting.md)) makes the settings long; a file per environment is where a long map stays readable.

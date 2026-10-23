@@ -1,5 +1,5 @@
 (ns safe.api
-  "manor's settings and secrets: one EDN file per environment, its
+  "groundwork's settings and secrets: one EDN file per environment, its
    secrets read from the one source the file names, every problem listed
    at once. safe's one public namespace.
 

@@ -1,6 +1,6 @@
 # safe
 
-Settings and secrets for a Clojure app, the manor's wall safe. One EDN
+Settings and secrets for a Clojure app, groundwork's wall safe. One EDN
 file per environment holds the whole settings map; `#secret :ns/name`
 references are read from the one source the file names, sops or
 1Password; `#env "NAME"` fills what the platform hands in. `load` checks
