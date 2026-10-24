@@ -104,17 +104,12 @@
       {:path (vec in) :message message})))
 
 (defn- check-source
-  "The problems of the :secrets source, its paths under :secrets; and
-   :token-from must have been an #env in the file: a token never sits in it."
-  [raw-source filled-source]
-  (concat
-   (when (and (map? raw-source) (contains? raw-source :token-from)
-              (not (instance? groundwork_settings.reading.EnvReference (:token-from raw-source))))
-     [{:path [:secrets :token-from] :message "should be #env \"NAME\": the token never sits in the file"}])
-   (when-let [explanation (malli/explain sources/source-shape filled-source)]
-     (for [{:keys [in message]} (:errors (malli-error/with-error-messages explanation))
-           :when (not= reading/unfilled (get-in filled-source in))]
-       {:path (into [:secrets] in) :message message}))))
+  "The problems of the :secrets source, its paths under :secrets."
+  [filled-source]
+  (when-let [explanation (malli/explain sources/source-shape filled-source)]
+    (for [{:keys [in message]} (:errors (malli-error/with-error-messages explanation))
+          :when (not= reading/unfilled (get-in filled-source in))]
+      {:path (into [:secrets] in) :message message})))
 
 (defn- read-secrets
   "[{name secret} problems]: the named source's secrets for the
@@ -123,7 +118,7 @@
   (let [names (distinct (map :secret-name references))]
     (cond
       (not (contains? raw-settings :secrets))
-      [{} [{:path [:secrets] :message "missing: the secrets' source, {:from :sops …} or {:from :1password …}, or nil for none"}]]
+      [{} [{:path [:secrets] :message "missing: the secrets' source, {:from :sops …}, or nil for none"}]]
 
       (and (nil? source) (seq names))
       [{} [{:path [:secrets] :message (str "is nil, and the file names secrets: " (str/join " " names))}]]
@@ -132,7 +127,7 @@
       [{} []]
 
       :else
-      (let [source-problems (check-source (:secrets raw-settings) source)]
+      (let [source-problems (check-source source)]
         (cond
           (seq source-problems) [{} source-problems]
           ;; an #env of the source's that couldn't be filled: listed already

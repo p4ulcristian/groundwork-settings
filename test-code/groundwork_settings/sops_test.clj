@@ -17,7 +17,7 @@
    [:database [:map {:closed true} [:password settings/secret]]]])
 
 (def ^:private plain-secrets
-  "groundwork-email:\n    postmark-token: \"pm \\\"quoted\\\" text, and a newline\\n\"\ncellar:\n    password: db-text-of-the-password\n    port: 5432\n")
+  "groundwork-email:\n    postmark-token: \"pm \\\"quoted\\\" text, and a newline\\n\"\ngroundwork-postgres:\n    password: db-text-of-the-password\n    port: 5432\n")
 
 (defn- settings-text [sops-file age-key-file timeout-ms password-name]
   (str "{:secrets {:from :sops :file \"" sops-file "\" :age-key-file \"" age-key-file "\" :timeout-ms " timeout-ms "}

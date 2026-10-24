@@ -1,9 +1,8 @@
 (ns groundwork-settings.sources
-  "Where the secrets come from: the one source the settings file names
-   under :secrets. sops: one `sops --decrypt` of the file with the age
-   key, its output read in memory. 1Password: one `op read` per secret,
-   with a service account's token. Each program is found on the PATH of
-   the environment groundwork-settings was given and runs with only the variables it
+  "Where the secrets come from: the sops file the settings file names
+   under :secrets, one `sops --decrypt` of it with the age key, its output
+   read in memory. sops is found on the PATH of the environment
+   groundwork-settings was given and runs with only the variables it
    needs; nothing it prints is written anywhere."
   (:require
    [clojure.java.io :as io]
@@ -16,26 +15,16 @@
    (java.util.concurrent TimeUnit)))
 
 (def source-shape
-  "The :secrets source, every key required, by :from.
+  "The :secrets source, every key required:
    {:from :sops :file \"secrets/production.sops.yaml\" :age-key-file \"/run/secrets/age-key\" :timeout-ms 30000}:
    sops decrypts :file with the age key in :age-key-file; a secret
-   :groundwork-email/postmark-token is the file's key postmark-token under groundwork-email.
-   {:from :1password :vault \"shop-production\" :token-from #env \"OP_SERVICE_ACCOUNT_TOKEN\" :timeout-ms 30000}:
-   1Password's op reads op://<vault>/<namespace>/<name>, the item named
-   by the secret's namespace and its field named by its name, as the
-   service account whose token is in that environment variable.
-   :timeout-ms: how long one run of sops, or of op, may take."
-  [:multi {:dispatch :from}
-   [:sops [:map {:closed true}
-           [:from [:= :sops]]
-           [:file [:string {:min 1}]]
-           [:age-key-file [:string {:min 1}]]
-           [:timeout-ms [:int {:min 1}]]]]
-   [:1password [:map {:closed true}
-                [:from [:= :1password]]
-                [:vault [:re {:error/message "should be a vault's name or id, without /"} #"^[^/]+$"]]
-                [:token-from [:string {:min 1}]]
-                [:timeout-ms [:int {:min 1}]]]]])
+   :groundwork-email/postmark-token is the file's key postmark-token under
+   groundwork-email. :timeout-ms: how long one run of sops may take."
+  [:map {:closed true}
+   [:from [:= :sops]]
+   [:file [:string {:min 1}]]
+   [:age-key-file [:string {:min 1}]]
+   [:timeout-ms [:int {:min 1}]]])
 
 (defn- problem [path message]
   {:path path :message message})
@@ -141,57 +130,8 @@
              :missing  (into {} (keep (fn [[n r]] (when (:message r) [n (:message r)]))) results)
              :problems []}))))))
 
-;; -----------------------------------------------------------------------------
-;; 1Password
-
-(defn make-op-reference
-  "op://<vault>/<namespace>/<name>: the item named by the secret's
-   namespace, its field named by its name."
-  [vault secret-name]
-  (str "op://" vault "/" (namespace secret-name) "/" (name secret-name)))
-
-(defn- say-op-error
-  "op's standard error without its \"[ERROR] date time\" start and with
-   the token, if it were ever there, replaced by its name."
-  [err token]
-  (-> (say-briefly err)
-      (str/replace #"^\[ERROR\] \S+ \S+ " "")
-      (str/replace (secret/reveal-text token) (str token))))
-
-(defn- read-one-from-1password
-  "{:secret s} or {:message …}."
-  [op vault token timeout-ms env secret-name]
-  (let [reference (make-op-reference vault secret-name)
-        {:keys [timed-out? exit out err]}
-        (run-program [op "read" "--no-newline" reference]
-                     {"PATH"                     (get env "PATH")
-                      "OP_SERVICE_ACCOUNT_TOKEN" (secret/reveal-text token)
-                      "OP_CACHE"                 "false"}
-                     timeout-ms)]
-    (cond
-      timed-out?    {:message (str "op took longer than " timeout-ms " ms to read " reference)}
-      (not= 0 exit) {:message (str "1Password could not read " reference ": " (say-op-error err token))}
-      :else         {:secret (secret/make-secret secret-name out)})))
-
-(defn read-from-1password
-  "{:found {name secret} :missing {name message} :problems […]}: one
-   `op read --no-newline op://…` per secret, one after another, with only
-   PATH, OP_SERVICE_ACCOUNT_TOKEN and OP_CACHE=false set: the service
-   account's token, never a person's sign-in, and nothing cached on disk.
-   The token goes to op in its environment, never on its command line."
-  [{:keys [vault token-from timeout-ms]} env secret-names]
-  (let [op    (find-program env "op")
-        token (secret/make-secret :groundwork-settings/op-service-account-token token-from)]
-    (if-not op
-      {:found {} :missing {} :problems [(problem [:secrets :from] "no op on the PATH")]}
-      (let [results (into {} (map (juxt identity #(read-one-from-1password op vault token timeout-ms env %))) secret-names)]
-        {:found    (into {} (keep (fn [[n r]] (when (:secret r) [n (:secret r)]))) results)
-         :missing  (into {} (keep (fn [[n r]] (when (:message r) [n (:message r)]))) results)
-         :problems []}))))
-
 (defn read-secrets
   "The source's secrets for secret-names: {:found :missing :problems}."
   [source env secret-names]
   (case (:from source)
-    :sops      (read-from-sops source env secret-names)
-    :1password (read-from-1password source env secret-names)))
+    :sops (read-from-sops source env secret-names)))

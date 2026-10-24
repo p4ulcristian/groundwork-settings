@@ -1,5 +1,7 @@
 # Nothing decrypted is written to disk
 
+> **Changed in part** by [sops is the one source of secrets; 1Password is removed](2026-10-24-sops-is-the-one-source-1password-is-removed.md) (2026-10-24): the `:1password` source is gone.
+
 **Decision:** safe never writes a secret to a file, caches nothing, and runs each program so that it writes nothing either:
 
 - **sops** runs `sops --decrypt --output-type json <file>`; its standard output is read into memory and parsed there. It gets only `PATH` and `SOPS_AGE_KEY_FILE`: no `HOME`, so no default key file, and no `SOPS_AGE_KEY` of the shell's; the key it uses is the one the settings name.

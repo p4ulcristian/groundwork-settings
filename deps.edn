@@ -1,5 +1,5 @@
 ;; groundwork-settings: groundwork's settings and secrets. One EDN file per environment, its
-;; #secret references read from one source, sops or 1Password, its #env from
+;; #secret references read from its sops file, its #env from
 ;; the environment, every problem at once; a secret prints as its name.
 ;; One tree: source-code/groundwork_settings/.
 {:paths ["source-code"]

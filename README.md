@@ -2,8 +2,8 @@
 
 Settings and secrets for a Clojure app. One EDN
 file per environment holds the whole settings map; `#secret :ns/name`
-references are read from the one source the file names, sops or
-1Password; `#env "NAME"` fills what the platform hands in. `load` checks
+references are read from the sops file the settings file names;
+`#env "NAME"` fills what the platform hands in. `load` checks
 the result against the app's malli shape and throws every problem at
 once, each with its path. A secret stays wrapped: printed, logged, in an
 exception, in malli's errors or as JSON it says only
@@ -14,7 +14,7 @@ used.
 io.github.p4ulcristian/groundwork-settings {:git/tag "v0.1.2" :git/sha "25dfbf7"}
 ```
 
-Needs only malli and jsonista, and the `sops` or `op` program on the
+Needs only malli and jsonista, and the `sops` program on the
 PATH. One public namespace, `groundwork-settings.api`.
 
 ## The api
@@ -91,12 +91,6 @@ postbox:
     webhook-token: "…"
 ```
 
-**1Password**: `{:from :1password :vault "shop-production" :token-from #env "OP_SERVICE_ACCOUNT_TOKEN" :timeout-ms …}`.
-groundwork-settings runs `op read --no-newline op://shop-production/cellar/password` once
-per secret, with only `PATH`, `OP_SERVICE_ACCOUNT_TOKEN` and `OP_CACHE=false`
-set: the item `groundwork-postgres`, its field `password`. The token comes only from
-`#env`, goes to op in its environment, and is never said.
-
 Nothing decrypted is written to disk, and nothing is cached. A program
 that takes longer than `:timeout-ms` is stopped.
 
@@ -114,8 +108,7 @@ clojure -X:test
 ```
 
 The sops tests use the real `sops` and `age-keygen` when they are on the
-PATH (a throwaway key in a temporary folder), and a fake sops always; the
-1Password tests use a fake `op`.
+PATH (a throwaway key in a temporary folder), and a fake sops always.
 
 Why it is the way it is: [`decisions/`](decisions/README.md).
 

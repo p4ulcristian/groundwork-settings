@@ -12,3 +12,4 @@ safe is groundwork's settings and secrets (groundwork: the libraries and the com
 - [Each source runs its program, found on the PATH it is given, with a time limit](2026-10-23-each-source-runs-its-program-with-a-time-limit.md)
 - [#env fills in what the platform hands in](2026-10-23-env-fills-what-the-platform-hands-in.md)
 - [load lists every problem at once, and logs nothing](2026-10-23-load-lists-every-problem-and-logs-nothing.md)
+- [sops is the one source of secrets; 1Password is removed](2026-10-24-sops-is-the-one-source-1password-is-removed.md)

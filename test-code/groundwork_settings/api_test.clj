@@ -63,16 +63,16 @@
         {:keys [type problems message text]}
         (problems-of #(settings/load {:file file :shape shape :env env}))]
     (is (= :groundwork-settings/bad-settings type))
-    (is (= [{:path [:errors :token] :message "should be a string"}
+    (is (= [{:path [:email :webhook-token] :message (str ":groundwork-email/webhook-token is not in " (:sops-file world) ": no key webhook-token under groundwork-email")}
+            {:path [:errors :token] :message "should be a string"}
             {:path [:meter] :message "disallowed key"}
-            {:path [:email :webhook-token] :message (str ":groundwork-email/webhook-token is not in " (:sops-file world) ": no key webhook-token under groundwork-email")}
             {:path [:server :debug?] :message "the environment variable DEBUG is not true or false"}
             {:path [:server :host] :message "the environment variable HOST is not set"}
             {:path [:server :host] :message "disallowed key"}
             {:path [:server :ip] :message "should be a string"}
             {:path [:server :workers] :message "the environment variable WORKERS is not a whole number"}]
            problems))
-    (is (str/starts-with? message (str file " has 8 problems:\n  [:errors :token] should be a string\n")))
+    (is (str/starts-with? message (str file " has 8 problems:\n  [:email :webhook-token] :groundwork-email/webhook-token is not in ")))
     (testing "no secret and no environment value is said"
       (is (not (str/includes? text secret-text)))
       (is (not (str/includes? text "four")))
@@ -84,7 +84,7 @@
     (is (= [{:path [] :message "the settings file /nowhere.edn can't be read"}]
            (:problems (problems-of #(settings/load {:file "/nowhere.edn" :shape [:map] :env env}))))
         "the file")
-    (is (= [{:path [:secrets] :message "missing: the secrets' source, {:from :sops …} or {:from :1password …}, or nil for none"}]
+    (is (= [{:path [:secrets] :message "missing: the secrets' source, {:from :sops …}, or nil for none"}]
            (:problems (load-text "{:a 1}"))))
     (is (= [{:path [:secrets] :message "is nil, and the file names secrets: :groundwork-email/postmark-token"}]
            (:problems (load-text "{:secrets nil :a #secret :groundwork-email/postmark-token}"))))
@@ -94,7 +94,10 @@
     (is (= [{:path [:secrets :file] :message "the secrets' source can't take a #secret"}]
            (:problems (load-text (str/replace (str "{:secrets " (sops-source world) "}")
                                               #":file \"[^\"]*\"" ":file #secret :a/b")))))
-    (is (= [{:path [:secrets :from] :message "invalid dispatch value"}]
+    (is (= [{:path [:secrets :age-key-file] :message "missing required key"}
+            {:path [:secrets :file] :message "missing required key"}
+            {:path [:secrets :from] :message "should be :sops"}
+            {:path [:secrets :timeout-ms] :message "missing required key"}]
            (:problems (load-text "{:secrets {:from :vault}}"))))
     (is (str/includes? (:message (first (:problems (load-text "{:secrets nil :a #unknown 1}"))))
                        "No reader function for tag unknown"))
