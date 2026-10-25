@@ -1,5 +1,7 @@
 # Secrets are references, read from one source the file names
 
+> **Changed in part** by [A place lists the sops files it opens; each secret lives in exactly one](2026-10-24-a-place-lists-its-sops-files-each-secret-in-one.md) (2026-10-24): `:secrets` is a vector of sops files.
+
 > **Changed in part** by [sops is the one source of secrets; 1Password is removed](2026-10-24-sops-is-the-one-source-1password-is-removed.md) (2026-10-24): the `:1password` source is gone.
 
 **Decision:** a secret in the settings file is a reference, `#secret :postbox/postmark-token`, a namespaced keyword. The file names one source under the top-level key `:secrets`, which `load` leaves out of the result; nil, written out, when the file has no secret. From the start there are two sources, every key required:

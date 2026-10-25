@@ -20,7 +20,7 @@
   "groundwork-email:\n    postmark-token: \"pm \\\"quoted\\\" text, and a newline\\n\"\ngroundwork-postgres:\n    password: db-text-of-the-password\n    port: 5432\n")
 
 (defn- settings-text [sops-file age-key-file timeout-ms password-name]
-  (str "{:secrets {:from :sops :file \"" sops-file "\" :age-key-file \"" age-key-file "\" :timeout-ms " timeout-ms "}
+  (str "{:secrets [{:from :sops :file \"" sops-file "\" :age-key-file \"" age-key-file "\" :timeout-ms " timeout-ms "}]
  :email  {:server-token #secret :groundwork-email/postmark-token}
  :database {:password #secret " password-name "}}"))
 
@@ -80,13 +80,13 @@
               _         (run ["age-keygen" "-o" other-key])
               {:keys [problems text]}
               (problems-of #(load-text (settings-text sops-file other-key 30000 ":groundwork-postgres/password")))]
-          (is (= [[:secrets]] (map :path problems)))
+          (is (= [[:secrets 0]] (map :path problems)))
           (is (str/starts-with? (:message (first problems)) (str "sops could not decrypt " sops-file ": ")))
           (is (not (str/includes? text "db-text")))
           (io/delete-file other-key)))
       (testing "a key file that isn't there"
         (let [{:keys [problems]} (problems-of #(load-text (settings-text sops-file "/nowhere/age-key" 30000 ":groundwork-postgres/password")))]
-          (is (= [{:path [:secrets :age-key-file] :message "the age key file /nowhere/age-key can't be read"}]
+          (is (= [{:path [:secrets 0 :age-key-file] :message "the age key file /nowhere/age-key can't be read"}]
                  problems)))))))
 
 (def ^:private decrypted-fixture
@@ -126,5 +126,5 @@ cat '" fixture "'
         (problems-of #(settings/load {:file  (files/write-file folder "production.edn" (settings-text sops-file key-file 3000 ":groundwork-postgres/password"))
                                   :shape shape
                                   :env   {"PATH" (str bin ":/usr/bin:/bin")}}))]
-    (is (= [{:path [:secrets] :message (str "sops's output for " sops-file " is not a JSON object")}] problems))
+    (is (= [{:path [:secrets 0] :message (str "sops's output for " sops-file " is not a JSON object")}] problems))
     (is (not (str/includes? text "db-text")))))

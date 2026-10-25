@@ -1,13 +1,14 @@
 (ns groundwork-settings.api
-  "groundwork's settings and secrets: one EDN file per environment, its
-   secrets read from the one source the file names, every problem listed
-   at once. groundwork-settings's one public namespace.
+  "groundwork's settings and secrets: one EDN file per place the app
+   runs, its secrets read from the sops files it lists (each secret in
+   exactly one), every problem listed at once. groundwork-settings's one
+   public namespace.
 
      ;; settings/production.edn
-     {:secrets {:from         :sops
-                :file         \"secrets/production.sops.yaml\"
-                :age-key-file \"/run/secrets/age-key\"
-                :timeout-ms   30000}
+     {:secrets [{:from         :sops
+                 :file         \"secrets/production.sops.yaml\"
+                 :age-key-file \"/run/secrets/age-key\"
+                 :timeout-ms   30000}]
       :server  {:ip \"0.0.0.0\" :port #env [\"PORT\" :int]}
       :email {:provider {:name :postmark :server-token #secret :groundwork-email/postmark-token}}}
 
@@ -103,36 +104,32 @@
                     (not-any? #(= % (take (count %) in)) skipped-paths))]
       {:path (vec in) :message message})))
 
-(defn- check-source
-  "The problems of the :secrets source, its paths under :secrets."
+(defn- check-sources
+  "The problems of :secrets, the sops files, their paths under :secrets."
   [filled-source]
-  (when-let [explanation (malli/explain sources/source-shape filled-source)]
+  (when-let [explanation (malli/explain sources/sources-shape filled-source)]
     (for [{:keys [in message]} (:errors (malli-error/with-error-messages explanation))
           :when (not= reading/unfilled (get-in filled-source in))]
       {:path (into [:secrets] in) :message message})))
 
 (defn- read-secrets
-  "[{name secret} problems]: the named source's secrets for the
-   references, or the problems of a missing or bad source."
+  "[{name secret} problems]: the listed sops files' secrets for the
+   references, or the problems of missing or bad :secrets."
   [raw-settings source references env]
   (let [names (distinct (map :secret-name references))]
     (cond
       (not (contains? raw-settings :secrets))
-      [{} [{:path [:secrets] :message "missing: the secrets' source, {:from :sops …}, or nil for none"}]]
-
-      (and (nil? source) (seq names))
-      [{} [{:path [:secrets] :message (str "is nil, and the file names secrets: " (str/join " " names))}]]
-
-      (nil? source)
-      [{} []]
+      [{} [{:path [:secrets] :message "missing: the sops files, [{:from :sops …} …], or [] for none"}]]
 
       :else
-      (let [source-problems (check-source source)]
+      (let [source-problems (check-sources source)]
         (cond
           (seq source-problems) [{} source-problems]
           ;; an #env of the source's that couldn't be filled: listed already
           (seq (reading/list-unfilled-paths source)) [{} []]
           (empty? names)        [{} []]
+          (empty? source)
+          [{} [{:path [:secrets] :message (str "lists no sops file, and the file names secrets: " (str/join " " names))}]]
           :else
           (let [{:keys [found missing problems]} (sources/read-secrets source env names)]
             [found
@@ -146,7 +143,7 @@
   "The settings in :file, an EDN map, checked against :shape (a malli
    shape), every key required by it: #env \"NAME\" and #env [\"NAME\" :int]
    filled from :env, (System/getenv) in an app; #secret :ns/name from the
-   source the file names under :secrets, a key the result leaves out.
+   sops files the file lists under :secrets, a key the result leaves out.
    Throws {:type :groundwork-settings/bad-settings :file … :problems [{:path … :message …}]}
    with every problem at once: a file that can't be read, a missing or
    unknown key, a wrong type, a missing environment variable, a #secret
@@ -167,7 +164,7 @@
           read-problems                     (concat env-problems
                                                     reference-problems
                                                     (for [{:keys [path]} secrets-own-references]
-                                                      {:path path :message "the secrets' source can't take a #secret"})
+                                                      {:path path :message "the sops files can't take a #secret"})
                                                     source-problems)
           skipped                           (concat (reading/list-unfilled-paths filled)
                                                     (map :path read-problems))

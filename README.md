@@ -29,10 +29,10 @@ PATH. One public namespace, `groundwork-settings.api`.
 
 ```clojure
 ;; settings/production.edn, in the app's repository
-{:secrets  {:from         :sops
-            :file         "secrets/production.sops.yaml"
-            :age-key-file "/run/secrets/age-key"
-            :timeout-ms   30000}                     ; how long sops may take
+{:secrets  [{:from         :sops
+             :file         "secrets/production.sops.yaml"
+             :age-key-file "/run/secrets/age-key"
+             :timeout-ms   30000}]                   ; how long sops may take
  :server   {:ip "0.0.0.0" :port #env ["PORT" :int]}
  :database {:host "db.internal" :user "shop" :password #secret :groundwork-postgres/password}
  :email  {:provider {:name :postmark :server-token #secret :groundwork-email/postmark-token}}}
@@ -72,23 +72,33 @@ settings/production.edn has 3 problems:
 with `(ex-data e)` = `{:type :groundwork-settings/bad-settings :file … :problems [{:path … :message …} …]}`.
 groundwork-settings logs nothing: it runs before the app's log exists.
 
-## The two sources
+## The sops files
 
-`:secrets` names one, every key required, or is nil when the file has no
-`#secret`. `load` leaves it out of the result.
-
-**sops**: `{:from :sops :file … :age-key-file … :timeout-ms …}`. groundwork-settings runs
-`sops --decrypt --output-type json <file>` with only `PATH` and
-`SOPS_AGE_KEY_FILE` set and reads its output in memory. `:groundwork-postgres/password`
-is the key `password` under `groundwork-postgres`:
+`:secrets` lists the sops files the place opens, each
+`{:from :sops :file … :age-key-file … :timeout-ms …}`, every key required, or
+`[]` when the file has no `#secret`. `load` leaves it out of the result.
+groundwork-settings runs `sops --decrypt --output-type json <file>` once per
+file, with only `PATH` and `SOPS_AGE_KEY_FILE` set, and reads its output in
+memory. `:groundwork-postgres/password` is the key `password` under
+`groundwork-postgres`:
 
 ```yaml
 # secrets/production.sops.yaml, before `sops --encrypt --age <public key>`
-cellar:
+groundwork-postgres:
     password: "…"
-postbox:
+groundwork-email:
     postmark-token: "…"
     webhook-token: "…"
+```
+
+A secret lives in exactly one of the files: one found in two is a problem
+(no file overrides another), and so is one found in none. Several files are
+for secrets with different readers, a team's shared sandbox keys and one
+machine's own:
+
+```clojure
+{:secrets [{:from :sops :file "secrets/dev-vendors.sops.yaml" …}   ; the team reads it
+           {:from :sops :file "secrets/box.sops.yaml" …}]}         ; only the box does
 ```
 
 Nothing decrypted is written to disk, and nothing is cached. A program
