@@ -50,7 +50,7 @@
 (deftest every-problem-is-listed-at-once-with-its-path
   (let [{:keys [folder env] :as world} (make-world)
         file (files/write-file folder "production.edn"
-                               (str "{:secrets " (sops-source world) "
+                               (str "{:parts [] :secrets " (sops-source world) "
  :server  {:ip       80
            :port     #env [\"PORT\" :int]
            :workers  #env [\"WORKERS\" :int]
@@ -84,40 +84,41 @@
     (is (= [{:path [] :message "the settings file /nowhere.edn can't be read"}]
            (:problems (problems-of #(settings/load {:file "/nowhere.edn" :shape [:map] :env env}))))
         "the file")
-    (is (= [{:path [:secrets] :message "missing: the sops files, [{:from :sops …} …], or [] for none"}]
+    (is (= [{:path [:parts] :message "missing: the place's part files, or [] for none"}
+            {:path [:secrets] :message "missing: the sops files, [{:from :sops …} …], or [] for none"}]
            (:problems (load-text "{:a 1}"))))
     (is (= [{:path [:secrets] :message "lists no sops file, and the file names secrets: :groundwork-email/postmark-token"}]
-           (:problems (load-text "{:secrets [] :a #secret :groundwork-email/postmark-token}"))))
+           (:problems (load-text "{:parts [] :secrets [] :a #secret :groundwork-email/postmark-token}"))))
     (is (= [{:path [:a] :message "#secret takes a namespaced keyword, #secret :groundwork-email/postmark-token"}
             {:path [:b] :message "#env takes a name, #env \"PORT\", or a name and a type, #env [\"PORT\" :int]; the types are :string, :int and :boolean"}]
-           (:problems (load-text "{:secrets [] :a #secret \"postmark-token\" :b #env [\"PORT\" :float]}"))))
+           (:problems (load-text "{:parts [] :secrets [] :a #secret \"postmark-token\" :b #env [\"PORT\" :float]}"))))
     (is (= [{:path [:secrets 0 :file] :message "the sops files can't take a #secret"}]
-           (:problems (load-text (str/replace (str "{:secrets " (sops-source world) "}")
+           (:problems (load-text (str/replace (str "{:parts [] :secrets " (sops-source world) "}")
                                               #":file \"[^\"]*\"" ":file #secret :a/b")))))
     (is (= [{:path [:secrets 0 :age-key-file] :message "missing required key"}
             {:path [:secrets 0 :file] :message "missing required key"}
             {:path [:secrets 0 :from] :message "should be :sops"}
             {:path [:secrets 0 :timeout-ms] :message "missing required key"}]
-           (:problems (load-text "{:secrets [{:from :vault}]}"))))
+           (:problems (load-text "{:parts [] :secrets [{:from :vault}]}"))))
     (is (= [{:path [:secrets] :message "should be a vector of sops files, [] for none"}]
-           (:problems (load-text "{:secrets {:from :sops}}")))
+           (:problems (load-text "{:parts [] :secrets {:from :sops}}")))
         "one file is still a list of one")
-    (is (str/includes? (:message (first (:problems (load-text "{:secrets [] :a #unknown 1}"))))
+    (is (str/includes? (:message (first (:problems (load-text "{:parts [] :secrets [] :a #unknown 1}"))))
                        "No reader function for tag unknown"))
     (is (= [{:path [] :message (str folder "/s.edn has more than one form: it should be one map")}]
-           (:problems (load-text "{:secrets []} {}"))))
+           (:problems (load-text "{:parts [] :secrets []} {}"))))
     (is (= :groundwork-settings/bad-options (:type (problems-of #(settings/load {:file "x.edn" :shape [:map]})))))))
 
 (deftest env-fills-text-numbers-and-booleans
   (let [{:keys [folder]} (make-world)
-        settings (settings/load {:file  (files/write-file folder "s.edn" "{:secrets [] :a #env \"NAME\" :b #env [\"PORT\" :int] :c #env [\"ON\" :boolean] :d #env [\"NAME\" :string] :e [#env \"NAME\"]}")
+        settings (settings/load {:file  (files/write-file folder "s.edn" "{:parts [] :secrets [] :a #env \"NAME\" :b #env [\"PORT\" :int] :c #env [\"ON\" :boolean] :d #env [\"NAME\" :string] :e [#env \"NAME\"]}")
                              :shape [:map [:a :string] [:b :int] [:c :boolean] [:d :string] [:e [:vector :string]]]
                              :env   {"NAME" "shop" "PORT" "-42" "ON" "false"}})]
     (is (= {:a "shop" :b -42 :c false :d "shop" :e ["shop"]} settings))))
 
 (defn- load-good-settings []
   (let [{:keys [folder env] :as world} (make-world)]
-    (settings/load {:file  (files/write-file folder "s.edn" (str "{:secrets " (sops-source world) " :token #secret :groundwork-email/postmark-token}"))
+    (settings/load {:file  (files/write-file folder "s.edn" (str "{:parts [] :secrets " (sops-source world) " :token #secret :groundwork-email/postmark-token}"))
                 :shape [:map [:token settings/secret]]
                 :env   env})))
 
@@ -159,7 +160,7 @@
     (testing "a secret where the shape wants text: refused, not said"
       (let [{:keys [folder env] :as world} (make-world)
             {:keys [problems text]}
-            (problems-of #(settings/load {:file  (files/write-file folder "s.edn" (str "{:secrets " (sops-source world) " :token #secret :groundwork-email/postmark-token}"))
+            (problems-of #(settings/load {:file  (files/write-file folder "s.edn" (str "{:parts [] :secrets " (sops-source world) " :token #secret :groundwork-email/postmark-token}"))
                                       :shape [:map [:token [:string {:min 100}]]]
                                       :env   env}))]
         (is (= [{:path [:token] :message "should be a string"}] problems))
@@ -168,7 +169,7 @@
 (deftest a-written-out-token-is-refused-where-a-secret-belongs
   (let [{:keys [folder env]} (make-world)
         {:keys [problems text]}
-        (problems-of #(settings/load {:file  (files/write-file folder "s.edn" (str "{:secrets [] :token \"" secret-text "\"}"))
+        (problems-of #(settings/load {:file  (files/write-file folder "s.edn" (str "{:parts [] :secrets [] :token \"" secret-text "\"}"))
                                   :shape [:map [:token settings/secret]]
                                   :env   env}))]
     (is (= [{:path [:token] :message "should be a #secret, read from the settings' secrets source"}] problems))

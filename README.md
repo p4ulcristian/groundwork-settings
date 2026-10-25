@@ -1,8 +1,9 @@
 # groundwork-settings
 
 Settings and secrets for a Clojure app. One EDN
-file per environment holds the whole settings map; `#secret :ns/name`
-references are read from the sops file the settings file names;
+file per place the app runs (a server, a developer's machine) lists the
+parts it is made of, small EDN files shared between places; `#secret :ns/name`
+references are read from the sops files the files name;
 `#env "NAME"` fills what the platform hands in. `load` checks
 the result against the app's malli shape and throws every problem at
 once, each with its path. A secret stays wrapped: printed, logged, in an
@@ -29,7 +30,8 @@ PATH. One public namespace, `groundwork-settings.api`.
 
 ```clojure
 ;; settings/production.edn, in the app's repository
-{:secrets  [{:from         :sops
+{:parts    []                                   ; the parts it is made of (below)
+ :secrets  [{:from         :sops
              :file         "secrets/production.sops.yaml"
              :age-key-file "/run/secrets/age-key"
              :timeout-ms   30000}]                   ; how long sops may take
@@ -71,6 +73,29 @@ settings/production.edn has 3 problems:
 
 with `(ex-data e)` = `{:type :groundwork-settings/bad-settings :file … :problems [{:path … :message …} …]}`.
 groundwork-settings logs nothing: it runs before the app's log exists.
+
+## Places and parts
+
+The file `load` is given is a **place**: where the app runs. It lists its
+**parts**, paths from the working directory, and has the keys only it has.
+A part is a settings file for one thing, a provider or a database, shared
+by every place that lists it; next to it sits its own sops file.
+
+```clojure
+;; settings/places/peter.edn
+{:parts   ["settings/parts/workos/sandbox.edn" "settings/parts/database/laptop.edn"]
+ :secrets []
+ :server  {:ip "127.0.0.1" :port 4100}}
+
+;; settings/parts/workos/sandbox.edn
+{:secrets [{:from :sops :file "settings/parts/workos/sandbox.sops.yaml" …}]
+ :workos  {:client-id "client_…" :api-key #secret :workos/api-key}}
+```
+
+- Every file says `:secrets`, its own sops files or `[]`; a place says `:parts`, or `[]`. A part lists no parts.
+- **Each top-level key is set in exactly one file.** `:database` in the place and in a part, or in two parts, is a problem naming both files: no file overrides another.
+- The `#secret`s of every file are looked up in the sops files of every file (a sops file two parts name is read once), each in exactly one of them.
+- A problem in a part's key names the part: `[:database :socket] should be a string (in settings/parts/database/laptop.edn)`.
 
 ## The sops files
 

@@ -42,7 +42,7 @@ esac
 
 (defn- load-world [{:keys [folder vendors-file box-file key-file env]} files]
   (settings/load {:file  (files/write-file folder "box.edn"
-                                           (str "{:secrets [" (str/join " " (map #(source % key-file) (files {:vendors vendors-file :box box-file}))) "]
+                                           (str "{:parts [] :secrets [" (str/join " " (map #(source % key-file) (files {:vendors vendors-file :box box-file}))) "]
  :workos   {:api-key  #secret :workos/api-key}
  :database {:password #secret :database/password}}"))
                   :shape shape

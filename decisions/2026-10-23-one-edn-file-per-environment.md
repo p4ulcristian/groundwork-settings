@@ -1,5 +1,7 @@
 # One EDN settings file per environment
 
+> **Changed in part** by [A place is made of parts; each key is set in exactly one file](2026-10-25-a-place-is-made-of-parts-each-key-in-one-file.md) (2026-10-25): the file is a place, listing its parts.
+
 > **Changed in part** by [The family and its composer are groundwork](https://github.com/p4ulcristian/groundwork/blob/Starting-from-the-bottom/decisions/2026-10-23-the-family-and-its-composer-are-groundwork.md) (2026-10-23): manor, the family, and house, the composer, are both named groundwork now.
 
 **Decision:** an app's settings are one EDN file per environment in its own repository, `settings/production.edn`, `settings/development.edn`: the whole settings map, every key written out, as the app's shape requires. Two tags stand where a value isn't in the file: `#secret :postbox/postmark-token`, read from the secrets' source the file names, and `#env "PORT"`, read from the environment. Paths in the file (the sops file, the age key) are as written, relative to the folder the app runs in.

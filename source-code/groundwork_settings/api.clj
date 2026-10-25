@@ -33,6 +33,7 @@
    [clojure.string :as str]
    [malli.core :as malli]
    [malli.error :as malli-error]
+   [groundwork-settings.parts :as parts]
    [groundwork-settings.reading :as reading]
    [groundwork-settings.secret :as secret]
    [groundwork-settings.sources :as sources]))
@@ -93,6 +94,14 @@
     (throw (ex-info (say-problems file sorted)
                     {:type :groundwork-settings/bad-settings :file file :problems sorted}))))
 
+(defn- say-origin
+  "The problem, its message naming the part its key came from (a key of
+   the place file itself names none: the file is said at the top)."
+  [origins {:keys [path] :as problem}]
+  (if-let [part (and (seq path) (get origins (first path)))]
+    (update problem :message str " (in " part ")")
+    problem))
+
 (defn- list-shape-problems
   "The shape's problems, each {:path :message}, but those about a value
    at or under a path already listed: a value that couldn't be read isn't
@@ -140,10 +149,12 @@
                        {:path path :message message}))]))))))
 
 (defn load
-  "The settings in :file, an EDN map, checked against :shape (a malli
-   shape), every key required by it: #env \"NAME\" and #env [\"NAME\" :int]
-   filled from :env, (System/getenv) in an app; #secret :ns/name from the
-   sops files the file lists under :secrets, a key the result leaves out.
+  "The settings of the place file :file, an EDN map, with its :parts
+   (groundwork-settings.parts: each top-level key set in exactly one file),
+   checked against :shape (a malli shape), every key required by it:
+   #env \"NAME\" and #env [\"NAME\" :int] filled from :env, (System/getenv)
+   in an app; #secret :ns/name from the sops files every file lists under
+   :secrets. :parts and :secrets are left out of the result.
    Throws {:type :groundwork-settings/bad-settings :file … :problems [{:path … :message …}]}
    with every problem at once: a file that can't be read, a missing or
    unknown key, a wrong type, a missing environment variable, a #secret
@@ -151,9 +162,11 @@
    problem's message, nor any environment variable's value."
   [{:keys [file shape env] :as options}]
   (check-options options)
-  (let [{:keys [settings problem]} (reading/read-file file)]
-    (when problem
-      (refuse file [problem]))
+  (let [{place :settings problem :problem} (reading/read-file file)
+        _                                 (when problem (refuse file [problem]))
+        {:keys [settings origins] gather-problems :problems} (parts/gather file place)]
+    (when (seq gather-problems)
+      (refuse file gather-problems))
     (let [[with-env env-problems]           (reading/fill-env settings env)
           [references reference-problems]   (reading/list-secret-references (dissoc with-env :secrets))
           secrets-own-references            (apply concat (reading/list-secret-references (select-keys with-env [:secrets])))
@@ -168,8 +181,9 @@
                                                     source-problems)
           skipped                           (concat (reading/list-unfilled-paths filled)
                                                     (map :path read-problems))
-          problems                          (concat read-problems
-                                                    (list-shape-problems shape filled skipped))]
+          problems                          (map (partial say-origin origins)
+                                                 (concat read-problems
+                                                         (list-shape-problems shape filled skipped)))]
       (when (seq problems)
         (refuse file problems))
       filled)))

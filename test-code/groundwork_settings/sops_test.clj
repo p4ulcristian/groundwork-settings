@@ -20,7 +20,7 @@
   "groundwork-email:\n    postmark-token: \"pm \\\"quoted\\\" text, and a newline\\n\"\ngroundwork-postgres:\n    password: db-text-of-the-password\n    port: 5432\n")
 
 (defn- settings-text [sops-file age-key-file timeout-ms password-name]
-  (str "{:secrets [{:from :sops :file \"" sops-file "\" :age-key-file \"" age-key-file "\" :timeout-ms " timeout-ms "}]
+  (str "{:parts [] :secrets [{:from :sops :file \"" sops-file "\" :age-key-file \"" age-key-file "\" :timeout-ms " timeout-ms "}]
  :email  {:server-token #secret :groundwork-email/postmark-token}
  :database {:password #secret " password-name "}}"))
 
